@@ -14,8 +14,12 @@ class NormalizedTest(BaseModel):
 
 class FinalReportResponse(BaseModel):
     tests: List[NormalizedTest]
+    tests_raw: List[str]
+    confidence: float
+    normalization_confidence: float
     summary: str
-    status: str = "Done..!!!"
+    explanations: List[str]
+    status: str = "ok"
 
 class ErrorResponse(BaseModel):
     status: str
