@@ -9,31 +9,29 @@ REFERENCE_RANGES = {
 
 EXPLANATIONS = {
     "Hemoglobin": {
-        "low": "Low hemoglobin may relate to anemia.",
-        "high": "High hemoglobin can be a sign of dehydration or other conditions."
+        "low": "A low hemoglobin level may suggest anemia, which can cause fatigue and weakness.",
+        "high": "Elevated hemoglobin can be a sign of dehydration or other underlying conditions that affect red blood cell count."
     },
     "WBC": {
-        "low": "Low white blood cell count can be a sign of a weakened immune system.",
-        "high": "High WBC can occur with infections."
+        "low": "A low white blood cell count can indicate a compromised immune system, making one more susceptible to infections.",
+        "high": "A high white blood cell count is often a sign that the body is fighting an infection."
     }
 }
 
 def extract_raw_tests(raw_text: str) -> RawExtractionResponse:
     """
-    Dynamically extracts raw test strings and calculates a confidence score.
+    Simulates AI-powered raw text extraction and confidence scoring.
     """
     pattern = re.compile(r"(\w+\s+[\d.]+\s+[a-zA-Z\/]+\s+\([^)]+\))")
     matches = pattern.findall(raw_text)
     
-    # AI Simulation: Confidence is higher if we find more matches
-    confidence = min(0.80 + (len(matches) * 0.1), 1.0)
+    confidence = min(0.85 + (len(matches) * 0.05), 1.0) if matches else 0.5
     
-    return RawExtractionResponse(tests_raw=matches, confidence=confidence)
+    return RawExtractionResponse(tests_raw=matches, confidence=round(confidence, 2))
 
 def extract_and_normalize_tests(raw_text: str) -> tuple[List[NormalizedTest], float]:
     """
-    Dynamically normalizes tests and calculates a normalization confidence score.
-    It now trusts the status from the input text (e.g., "(Low)").
+    Dynamically normalizes tests and correctly calculates the status based on reference ranges.
     """
     normalized_tests = []
     
@@ -42,15 +40,20 @@ def extract_and_normalize_tests(raw_text: str) -> tuple[List[NormalizedTest], fl
     
     known_tests_count = 0
     for match in matches:
-        name, value_str, unit, status_from_text = match
+        name, value_str, unit, _ = match  # We ignore the status from the text
         value = float(value_str)
 
         if name in REFERENCE_RANGES:
             known_tests_count += 1
             ref = REFERENCE_RANGES[name]
             
-            # Use the status directly from the text file
-            determined_status = status_from_text.lower()
+            # **Correctly determine the status based on the value**
+            if value < ref["low"]:
+                determined_status = "low"
+            elif value > ref["high"]:
+                determined_status = "high"
+            else:
+                determined_status = "normal"
 
             normalized_tests.append(NormalizedTest(
                 name=name,
@@ -60,27 +63,26 @@ def extract_and_normalize_tests(raw_text: str) -> tuple[List[NormalizedTest], fl
                 ref_range=ReferenceRange(low=ref["low"], high=ref["high"])
             ))
 
-    # AI Simulation: Confidence is based on the ratio of known to unknown tests
-    normalization_confidence = (known_tests_count / len(matches)) if matches else 0.0
+    normalization_confidence = (known_tests_count / len(matches)) * 0.9 if matches else 0.0
     
     return normalized_tests, round(normalization_confidence, 2)
 
 def generate_patient_summary(tests: List[NormalizedTest]) -> Dict[str, Any]:
     """
-    Dynamically generates a patient-friendly summary and relevant explanations.
+    Simulates an AI generating a natural language summary and explanations.
     """
-    findings = []
-    explanations = []
+    abnormal_tests = [test for test in tests if test.status != "normal"]
     
-    for test in tests:
-        if test.status != "normal":
-            findings.append(f"{test.status} {test.name}")
-            if test.name in EXPLANATIONS and test.status in EXPLANATIONS[test.name]:
-                explanations.append(EXPLANATIONS[test.name][test.status])
-
-    if not findings:
-        summary = "All test results are within the normal range."
+    if not abnormal_tests:
+        summary = "All test results appear to be within the standard normal ranges."
+        explanations = []
     else:
-        summary = f"The report shows { ' and '.join(findings) }."
-        
+        findings = [f"a {test.status} {test.name} level" for test in abnormal_tests]
+        if len(findings) > 1:
+            summary = f"The key findings from your report are {', '.join(findings[:-1])} and {findings[-1]}."
+        else:
+            summary = f"The key finding from your report is {findings[0]}."
+
+        explanations = [EXPLANATIONS[test.name][test.status] for test in abnormal_tests if test.name in EXPLANATIONS and test.status in EXPLANATIONS[test.name]]
+
     return {"summary": summary, "explanations": explanations}
